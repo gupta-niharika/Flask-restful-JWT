@@ -1,42 +1,36 @@
-from flask import Flask
-from flask_bcrypt import Bcrypt 
+from flask import Flask, request, Response
 from database.db import initialize_db
-from flask_restful import Api 
-from resources.routes import initialize_routes 
-from flask_jwt_extended import jwt_required, JWTManager
+from database.models import Movie
+import json
 
 app = Flask(__name__)
-app.config.from_envvar('ENV_FILE_LOCATION') #environment variable which should store the location of .env file relative to yoda.py 
-# run this on terminal : set ENV_FILE_LOCATION =.env
 
-
-api = Api(app)
-bcrypt = Bcrypt(app)
-jwt = JWTManager(app)
-
-# movies = [
-#     {
-#         "name": "The Shawshank Redemption",
-#         "casts": ["Tim Robbins", "Morgan Freeman", "Bob Gunton", "William Sadler"],
-#         "genres": ["Drama"]
-#     },
-#     {
-#        "name": "The Godfather ",
-#        "casts": ["Marlon Brando", "Al Pacino", "James Caan", "Diane Keaton"],
-#        "genres": ["Crime", "Drama"]
-#     }
-# ]
-
-
-app.config['MONGODB_SETTINGS'] = {
-    'host' : 'mongodb://localhost/movie-bag'
-}
+app.config['MONGODB_HOST'] = 'mongodb://admin:admin@cluster0-shard-00-00-iim6b.mongodb.net:27017,cluster0-shard-00-01-iim6b.mongodb.net:27017,cluster0-shard-00-02-iim6b.mongodb.net:27017/MSTC?ssl=true&replicaSet=Cluster0-shard-0&authSource=admin&retryWrites=true&w=majority'
+app.config['MONGODB_DB'] = 'MSTC'
 initialize_db(app)
 
-initialize_routes(api)
+@app.route('/movies')
+def get_movies():
+    movies = Movie.objects().to_json()
+    return Response(movies, mimetype="application/json", status=200)
+
+
+@app.route('/movies', methods=['POST'])
+def add_movie():
+    body = request.get_json()
+    movie = Movie(**body).save()
+    id = movie.id
+    return 'movie added', 200
+
+@app.route('/movies/<id>', methods=['PUT'])
+def update_movie(id):
+    body = request.get_json()
+    Movie.objects.get(id=id).update(**body)
+    return 'movie updated', 200
+
+@app.route('/movies/<id>', methods=['DELETE'])
+def delete_movie(id):
+    movie = Movie.objects.get(id=id).delete()
+    return 'movie deleted', 200
 
 app.run()
-
-
-# if __name__ == '__main__':
-#     app.run(debug=True)
